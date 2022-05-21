@@ -1,0 +1,1657 @@
+
+#define  ENCODER_OPTIMIZE_INTERRUPTS //エンコーダノイズ対策
+#include <Wire.h>
+#include <Encoder.h>
+
+Encoder myEnc(18, 19);//ロータリーエンコーダライブラリ用
+float oldPosition  = -999;//ロータリーエンコーダライブラリ用
+float newPosition  = -999;
+float oldPosition2  = -999;//ロータリーエンコーダライブラリ用
+float newPosition2  = -999;
+float oldPosition3  = -999;//ロータリーエンコーダライブラリ用
+float newPosition3  = -999;
+float oldPosition4  = -999;//ロータリーエンコーダライブラリ用
+float newPosition4  = -999;
+float oldPosition5  = -999;//ロータリーエンコーダライブラリ用
+float newPosition5  = -999;
+
+byte enc_switch_in = 0;
+unsigned long enc_switch_timer = 0;
+bool enc_switch_latch = false;
+byte enc_switch_counter = 0;
+byte enc_switch = 0;
+byte toggle_switch = 0;//0=EXT,1=ON
+static int DOUBLE_CLICK_TIME = 500;
+
+int menu = 0;
+int menu2 = 0;
+
+int keyPin = 0;
+
+int octRange = 0;
+int octave = 0;
+
+int select = 0;
+int entered = -1;
+
+int arpLength = 1;
+int arpDelay = 100;
+int scale = 0;
+int arpDirection = 0;
+
+int currentNote = 0;
+int correctCounter = 0;
+int incorrectCounter = 0;
+
+int keyLastStatus = 0;
+
+
+
+        bool cntr = false;
+int Ycntr = 0;
+int Ncntr = 0;
+
+//////////////
+
+#include <ezButton.h>
+
+///////////
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SH110X.h>
+
+#define i2c_Address 0x3c //initialize with the I2C addr 0x3C Typically eBay OLED's
+
+#define SCREEN_WIDTH 128 // OLED display width, in pixels
+#define SCREEN_HEIGHT 64 // OLED display height, in pixels
+#define OLED_RESET -1   //   QT-PY / XIAO
+Adafruit_SH1106G display = Adafruit_SH1106G(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+
+////////////
+#include <MIDI.h>
+MIDI_CREATE_DEFAULT_INSTANCE();
+
+struct midiKeyTable
+{
+  int keyPin;
+  int midiNote;
+} midiKeys[] = {
+  { 52,  0}, // Pin, MIDI note - C
+  { 50,  1}, // C# 0
+  { 48,  2}, // D 0
+  { 46,  3}, // D# 0
+  { 44,  4}, // E  0
+  { 42,  5}, // F 0
+  { 40,  6}, // F# 0
+  { 38,  7}, // G 0
+  { 36,  8}, //G# 0
+  { 34,  9}, // A 0
+  { 32,  10}, // A# 0
+  { 30,  11}, // B 0
+
+};
+
+///////////////
+
+ezButton octRangeup(6);
+ezButton octRangeDown(5);
+
+
+const int CMajor[] = {0, 2, 4, 5, 7, 9, 11, 12}; //R W W H W W W H
+const int CMinor[] = {0, 2, 3, 5, 7, 9, 10, 12}; //R W H W W W H W
+
+const int CSMajor[] = {1, 3, 5, 6, 8, 10, 12, 13}; //R W W H W W W H
+const int CSMinor[] = {1, 3, 4, 6, 8, 10, 11, 13}; //R W H W W W H W
+
+const int DMajor[] = {2, 4, 6, 7, 9, 11, 13, 14}; //R W W H W W W H
+const int DMinor[] = {2, 4, 5, 7, 9, 11, 12, 14}; //R W H W W W H W
+
+const int DSMajor[] = {3, 5, 7, 8, 10, 12, 14, 15}; //R W W H W W W H
+const int DSMinor[] = {3, 5, 6, 8, 10, 12, 13, 15}; //R W H W W W H W
+
+const int EMajor[] = {4, 6, 8, 9, 11, 13, 15, 16}; //R W W H W W W H
+const int EMinor[] = {4, 6, 7, 9, 11, 13, 14, 16}; //R W H W W W H W
+
+const int FMajor[] = {5, 7, 9, 10, 12, 14, 16, 17}; //R W W H W W W H
+const int FMinor[] = {5, 7, 8, 10, 12, 14, 15, 17}; //R W H W W W H W
+
+const int FSMajor[] = {6, 8, 10, 11, 13, 15, 17, 18}; //R W W H W W W H
+const int FSMinor[] = {6, 8, 9,  11, 13, 15, 16, 18}; //R W H W W W H W
+
+const int GMajor[] = {7, 9, 11, 12, 14, 16, 18, 19}; //R W W H W W W H
+const int GMinor[] = {7, 9, 10, 12, 14, 16, 17, 19}; //R W H W W W H W
+
+const int GSMajor[] = {8, 10, 12, 13, 15, 17, 19, 20}; //R W W H W W W H
+const int GSMinor[] = {8, 10, 11, 13, 15, 17, 18, 20}; //R W H W W W H W
+
+const int AMajor[] = {9, 11, 13, 14, 16, 18, 20, 21}; //R W W H W W W H
+const int AMinor[] = {9, 11, 12, 14, 16, 18, 19, 21}; //R W H W W W H W
+
+const int ASMajor[] = {10, 12, 14, 15, 17, 19, 21, 22}; //R W W H W W W H
+const int ASMinor[] = {10, 12, 13, 15, 17, 19, 20, 22}; //R W H W W W H W
+
+const int BMajor[] = {11, 13, 15, 16, 18, 20, 22, 23}; //R W W H W W W H
+const int BMinor[] = {11, 13, 14, 16, 18, 20, 21, 23}; //R W H W W W H W
+
+
+const int numKeys = 12; //Create Read-Only constant numKeys
+bool keyStates[numKeys] = {0}; //Create boolean array keyStates the same size as numKeys and fill with all 0's
+
+
+void setup() {
+  MIDI.begin();
+
+  Serial.begin(9600); //SERIAL COMM. & MIDI CANNOT BE RAN AT SAME TIME!!!!
+
+  // Loop through the map of keys and set them all to INPUT_PULLUP
+  // Means the pin is in input mode with an internal pull up resistor, so it is waiting to receive ground to do something
+
+  for (int i = 0; i < numKeys; i++)
+  {
+    pinMode(midiKeys[i].keyPin, INPUT_PULLUP);
+    //Also initialise the state for the current key so that it is marked as 'OFF'
+    keyStates[i] = false;
+  }
+
+  pinMode(8, OUTPUT); //Color_LED_R
+  pinMode(9, OUTPUT); //Color_LED_G
+  pinMode(10, OUTPUT); //Color_LED_B
+
+  pinMode(7, INPUT_PULLUP); //Encoder Button
+
+  octRangeup.setDebounceTime(50);
+  octRangeDown.setDebounceTime(50);
+
+  display.begin(i2c_Address, true); // Address 0x3C default
+  display.clearDisplay();
+  display.setTextColor(SH110X_WHITE);
+  display.setTextSize(1);
+
+  randomSeed(analogRead(A0));
+
+  // oLEDStart();
+
+
+}
+
+
+
+
+void loop() {
+
+
+  menuAdjust();
+  staticMenu();
+  display.clearDisplay();
+  midiControl();
+
+  //Serial.println(keyPin);
+
+}
+
+
+void menuAdjust() {
+
+  octRangeup.loop(); // MUST call the loop() function first
+  octRangeDown.loop();
+
+  if (octRangeup.isPressed()) {
+    octRange = octRange + 12;
+  }
+
+  if (octRangeup.isReleased()) {
+    octRange = octRange;
+  }
+
+  if (octRangeDown.isPressed()) {
+    octRange = octRange - 12;
+  }
+
+  if (octRangeDown.isReleased()) {
+    octRange = octRange;
+  }
+
+  if ( octRange < 0) {
+    octRange = 120;
+  }
+  else if ( octRange >= 121 ) {
+    octRange = 0;
+  }
+
+
+  enc_switch_in  = !digitalRead(7);
+
+
+  if ((enc_switch_in == true) && (enc_switch_latch == false)) {  //Count Times Button Pressed
+    enc_switch_counter++;
+    enc_switch_timer = millis();
+    enc_switch_latch = true;
+  }
+  else if (enc_switch_in == false) {
+    enc_switch_latch = false;
+  }
+
+
+  if ((millis() >= enc_switch_timer + DOUBLE_CLICK_TIME) && (enc_switch_in == false)) {  //Reset Count when no Button Pressed
+    enc_switch_counter = 0;
+  }
+
+
+  if ((enc_switch_in == true) && (enc_switch_counter == 1)) {
+    enc_switch = 1;
+  }
+
+  else if ((enc_switch_in == true) && (enc_switch_counter >= 2)) {
+    enc_switch = 2;
+  }
+
+  else if ((enc_switch_counter == 0) && (enc_switch_in == false)) {
+    enc_switch = 0;
+  }
+
+
+
+
+  if ( select == 0) { //MAIN MENU ADJUST
+    newPosition = myEnc.read();
+    if ( (newPosition - 3) / 4  > oldPosition / 4) {
+      oldPosition = newPosition;
+      menu = menu - 1;
+    }
+
+    else if ( (newPosition + 3) / 4  < oldPosition / 4 ) {
+      oldPosition = newPosition;
+      menu = menu + 1;
+    }
+
+    if ( menu < 0) {
+      menu = 2;
+    }
+    else if ( menu >= 3 ) {
+      menu = 0;
+    }
+    if (enc_switch == 1) { //Enter selection
+      select = 1;
+    }
+
+  }
+
+
+
+  if ( menu == 1 && select == 1) {
+    if (enc_switch == 0) {
+      newPosition = myEnc.read();
+      if ( (newPosition - 3) / 4  > oldPosition / 4) {
+        oldPosition = newPosition;
+        menu2 = menu2 - 1;
+      }
+
+      else if ( (newPosition + 3) / 4  < oldPosition / 4 ) {
+        oldPosition = newPosition;
+        menu2 = menu2 + 1;
+      }
+
+      if ( menu2 < 0) {
+        menu2 = 3;
+      }
+      else if ( menu2 >= 4 ) {
+        menu2 = 0;
+      }
+    }
+
+    if (enc_switch == 1 && menu2 == 0) {
+      newPosition2 = myEnc.read();
+      if ( (newPosition2 - 3) / 4  > oldPosition2 / 4) {
+        oldPosition2 = newPosition2;
+        oldPosition = newPosition2;
+        arpDelay = arpDelay - 10;
+      }
+
+      else if ( (newPosition2 + 3) / 4  < oldPosition2 / 4 ) {
+        oldPosition2 = newPosition2;
+        oldPosition = newPosition2;
+        arpDelay = arpDelay + 10;
+      }
+
+
+      if ( arpDelay < 0) {
+        arpDelay = 500;
+      }
+      else if ( arpDelay >= 501 ) {
+        arpDelay = 10;
+      }
+
+    }
+
+    else if (enc_switch == 1 && menu2 == 1) {
+
+      newPosition3 = myEnc.read();
+      if ( (newPosition3 - 3) / 4  > oldPosition3 / 4) {
+        oldPosition3 = newPosition3;
+        oldPosition2 = newPosition3;
+        oldPosition = newPosition3;
+        arpLength = arpLength - 1;
+      }
+
+      else if ( (newPosition3 + 3) / 4  < oldPosition3 / 4 ) {
+        oldPosition3 = newPosition3;
+        oldPosition2 = newPosition3;
+        oldPosition = newPosition3;
+        arpLength = arpLength + 1;
+      }
+
+      if ( arpLength < 1) {
+        arpLength = 8;
+      }
+      else if ( arpLength >= 9 ) {
+        arpLength = 1;
+      }
+    }
+
+    else if (enc_switch == 1 && menu2 == 2) {
+
+      newPosition4 = myEnc.read();
+      if ( (newPosition4 - 3) / 4  > oldPosition4 / 4) {
+        oldPosition4 = newPosition4;
+        oldPosition3 = newPosition4;
+        oldPosition2 = newPosition4;
+        oldPosition = newPosition4;
+        scale = scale - 1;
+      }
+
+      else if ( (newPosition4 + 3) / 4  < oldPosition4 / 4 ) {
+        oldPosition4 = newPosition4;
+        oldPosition3 = newPosition4;
+        oldPosition2 = newPosition4;
+        oldPosition = newPosition4;
+        scale = scale + 1;
+      }
+
+      if ( scale < 0) {
+        scale = 1;
+      }
+      else if ( scale >= 2 ) {
+        scale = 0;
+      }
+    }
+
+    else if (enc_switch == 1 && menu2 == 3) {
+
+      newPosition5 = myEnc.read();
+      if ( (newPosition5 - 3) / 4  > oldPosition5 / 4) {
+        oldPosition5 = newPosition5;
+        oldPosition4 = newPosition5;
+        oldPosition3 = newPosition5;
+        oldPosition2 = newPosition5;
+        oldPosition = newPosition5;
+        arpDirection = arpDirection - 1;
+      }
+
+      else if ( (newPosition5 + 3) / 4  < oldPosition5 / 4 ) {
+        oldPosition5 = newPosition5;
+        oldPosition4 = newPosition5;
+        oldPosition3 = newPosition5;
+        oldPosition2 = newPosition5;
+        oldPosition = newPosition5;
+        arpDirection = arpDirection + 1;
+      }
+
+      if ( arpDirection < 0) {
+        arpDirection = 2;
+      }
+      else if ( arpDirection >= 3 ) {
+        arpDirection = 0;
+      }
+    }
+
+
+
+
+
+
+    else if (enc_switch == 2) { //Go back to start menu
+      select = 0;
+    }
+
+  }
+
+
+  else if (enc_switch == 2) { //Go back to start menu
+    select = 0;
+  }
+
+}
+
+void staticMenu() {
+
+  if (select == 0) { //MAIN MENU
+    display.clearDisplay();
+    display.setTextColor(SH110X_WHITE);
+    display.setCursor(10, 0);
+    display.println("PLAY");
+
+    display.setCursor(10, 10);
+    display.println("ARP");
+
+    display.setCursor(10, 20);
+    display.println("TEACH");
+
+    display.setCursor(0, menu * 10);
+    display.println(">");
+
+  }
+
+
+  if (menu == 0  && select == 1) { //PLAY
+    display.clearDisplay();
+    display.setCursor(0, 50);
+    display.println("PLAY MODE");
+
+    //DRAW PIANO KEYS
+    display.drawRect(0,  0, 10, 32, SH110X_WHITE); // x, y, width, height, colour C
+    display.fillRect(10, 0, 8,  21, SH110X_WHITE); // x, y, width, height, colour C#
+    display.drawRect(18, 0, 10, 32, SH110X_WHITE); // x, y, width, height, colour D
+    display.fillRect(28, 0, 8,  21, SH110X_WHITE); // x, y, width, height, colour D#
+    display.drawRect(36, 0, 10, 32, SH110X_WHITE); // x, y, width, height, colour E
+    display.drawRect(45, 0, 10, 32, SH110X_WHITE); // x, y, width, height, colour F
+    display.fillRect(54, 0, 8,  21, SH110X_WHITE); // x, y, width, height, colour F#
+    display.drawRect(62, 0, 10, 32, SH110X_WHITE); // x, y, width, height, colour G
+    display.fillRect(72, 0, 8,  21, SH110X_WHITE); // x, y, width, height, colour G#
+    display.drawRect(80, 0, 10, 32, SH110X_WHITE); // x, y, width, height, colour A
+    display.fillRect(89, 0, 8,  21, SH110X_WHITE); // x, y, width, height, colour A#
+    display.drawRect(97, 0, 10, 32, SH110X_WHITE); // x, y, width, height, colour B
+
+
+    if ((midiKeys[0].keyPin = 52) && (keyStates[0] == true)) {
+      display.fillRect(0,  0, 10, 32, SH110X_WHITE); // x, y, width, height, colour C
+      display.setCursor(2, 35);
+      display.println("C");
+    }
+
+    else if ((midiKeys[1].keyPin = 50) && (keyStates[1] == true)) {
+      display.drawRect(10, 0, 8,  21, SH110X_BLACK); // x, y, width, height, colour C#
+      display.setCursor(12, 35);
+      display.println("C#");
+    }
+
+    else if ((midiKeys[2].keyPin = 48) && (keyStates[2] == true)) {
+      display.fillRect(18, 0, 10, 32, SH110X_WHITE); // x, y, width, height, colour D
+      display.setCursor(20, 35);
+      display.println("D");
+    }
+
+    else if ((midiKeys[3].keyPin = 46) && (keyStates[3] == true)) {
+      display.drawRect(28, 0, 8,  21, SH110X_BLACK); // x, y, width, height, colour D#
+      display.setCursor(30, 35);
+      display.println("D#");
+    }
+
+    else if ((midiKeys[4].keyPin = 44) && (keyStates[4] == true)) {
+      display.fillRect(36, 0, 10, 32, SH110X_WHITE); // x, y, width, height, colour E
+      display.setCursor(38, 35);
+      display.println("E");
+    }
+
+    else if ((midiKeys[5].keyPin = 42) && (keyStates[5] == true)) {
+      display.fillRect(45, 0, 10, 32, SH110X_WHITE); // x, y, width, height, colour F
+      display.setCursor(47, 35);
+      display.println("F");
+    }
+
+    else if ((midiKeys[6].keyPin = 40) && (keyStates[6] == true)) {
+      display.drawRect(54, 0, 8,  21, SH110X_BLACK); // x, y, width, height, colour F#
+      display.setCursor(56, 35);
+      display.println("F#");
+    }
+
+    else if ((midiKeys[7].keyPin = 38) && (keyStates[7] == true)) {
+      display.fillRect(62, 0, 10, 32, SH110X_WHITE); // x, y, width, height, colour G
+      display.setCursor(64, 35);
+      display.println("G");
+    }
+
+    else if ((midiKeys[8].keyPin = 36) && (keyStates[8] == true)) {
+      display.drawRect(72, 0, 8,  21, SH110X_BLACK); // x, y, width, height, colour G#
+      display.setCursor(74, 35);
+      display.println("G#");
+    }
+
+
+    else if ((midiKeys[9].keyPin = 34) && (keyStates[9] == true)) {
+      display.fillRect(80, 0, 10, 32, SH110X_WHITE); // x, y, width, height, colour A
+      display.setCursor(82, 35);
+      display.println("A");
+    }
+
+    else if ((midiKeys[10].keyPin = 32) && (keyStates[10] == true)) {
+      display.drawRect(89, 0, 8,  21, SH110X_BLACK); // x, y, width, height, colour A#
+      display.setCursor(91, 35);
+      display.println("A#");
+    }
+
+    else if ((midiKeys[11].keyPin = 30) && (keyStates[11] == true)) {
+      display.fillRect(97, 0, 10, 32, SH110X_WHITE); // x, y, width, height, colour B
+      display.setCursor(99, 35);
+      display.println("B");
+    }
+  }
+
+
+  else if (menu == 1  && select == 1) { //ARP
+    display.clearDisplay();
+
+    display.setCursor(10, 0);
+    display.println("DELAY:");
+
+    display.setCursor(47, 0);
+    display.println(arpDelay);
+
+    display.setCursor(68, 0);
+    display.println("ms");
+
+    display.setCursor(10, 10);
+    display.println("LENGTH:");
+
+    display.setCursor(52, 10);
+    display.println(arpLength);
+
+    display.setCursor(60, 10);
+    display.println("NOTES");
+
+    display.setCursor(10, 20);
+    display.println("SCALE:");
+
+    if (scale == 0) {
+      display.setCursor(50, 20);
+      display.println("MAJOR");
+
+    }
+
+    else if (scale == 1) {
+      display.setCursor(50, 20);
+      display.println("MINOR");
+    }
+
+    display.setCursor(10, 30);
+    display.println("DIRECTION:");
+
+    if (arpDirection == 0) {
+      display.setCursor(70, 30);
+      display.println("FORWARD");
+    }
+
+    else if (arpDirection == 1) {
+      display.setCursor(70, 30);
+      display.println("BACKWARD");
+    }
+
+    else if (arpDirection == 2) {
+      display.setCursor(70, 30);
+      display.println("RANDOM");
+    }
+
+    display.setCursor(0, menu2 * 10);
+    display.println(">");
+
+
+
+  }
+
+
+  else if (menu == 2  && select == 1) { //TEACHER
+
+    //DRAW FACE
+    display.clearDisplay();
+
+    display.drawCircle(64, 32, 22, SH110X_WHITE); //x, y, radius, colour //HEAD
+
+    display.drawLine(52, 19, 58, 19, SH110X_WHITE); //x1, y1, x2, y2, colour //LEFT EYEBROW
+    display.drawLine(72, 19, 78, 19, SH110X_WHITE); //x1, y1, x2, y2, colour //RIGHT EYEBROW
+
+    display.drawCircle(55, 25, 3, SH110X_WHITE); //x, y, radius, colour //LEFT EYE
+    display.drawPixel (55, 25,    SH110X_WHITE); //x, y, radius, colour //LEFT EYE
+    display.drawCircle(75, 25, 3, SH110X_WHITE); //x, y, radius, colour //RIGHT EYE
+    display.drawPixel (75, 25,    SH110X_WHITE); //x, y, radius, colour //RIGHT EYE
+
+    display.drawLine(55, 40, 75, 40, SH110X_WHITE); //x1, y1, x2, y2, colour //MOUTH
+
+    display.setCursor(55, 57);
+    display.println("TEST");
+
+
+    
+
+    for (int i = 0; i < numKeys; i++) {
+
+      int keyStatus = digitalRead(midiKeys[i].keyPin);
+
+      if (keyStatus == 0 && keyLastStatus == false) {
+        int currentNote = midiKeys[i].midiNote;
+        //  Serial.println(currentNote);
+        bool found = false;
+        keyLastStatus = true;
+
+        for (int j = 0; j < 7; j++) {
+          int scaleNote = CMajor[j];
+          // Serial.println(scaleNote);
+
+          if (currentNote == scaleNote) {
+            found = true;
+            break;
+          }
+        }
+
+        if (found == true) {
+          display.setCursor(0, 0);
+          display.println("YES");
+correctCounter = correctCounter + 1;
+        }
+
+        else {
+          display.setCursor(0, 0);
+          display.println("NO");
+incorrectCounter = incorrectCounter + 1;
+        }
+      }
+      else if (keyStatus == 1) { 
+        keyLastStatus = false;
+
+        
+        
+  }
+   
+  }
+   //   Serial.println(keyLastStatus);
+    
+    
+  }
+
+
+
+ 
+Serial.println(correctCounter);
+Serial.println(incorrectCounter);
+ 
+  display.display();
+}
+
+
+void midiControl() {
+
+
+
+  if (menu == 0  && select == 1) {
+
+    for (int i = 0; i < numKeys; i++) {
+
+      int keyStatus = digitalRead(midiKeys[i].keyPin); //Create int variable keyStatus and read the status of each key
+      if ((keyStatus == LOW) && (keyStates[i] == false)) { //If keyStatus = LOW (ie - key ON) AND current keyState = FALSE
+
+        MIDI.sendNoteOn(midiKeys[i].midiNote + octRange, 127, 1); //Turn midi note ON: velocity 127, midi channel 1.
+        //Mark the button  state as TRUE, since the button is now ON
+        keyStates[i] = true;
+      }
+
+      else if ((keyStatus == HIGH) && (keyStates[i] == true)) //Else if keyStatus = HIGH (ie - key OFF) AND current keyState = TRUE
+      {
+        MIDI.sendNoteOff(midiKeys[i].midiNote + octRange, 0, 1); //turn midi note off, midi channel 1.
+        //Mark the button  state as FALSE, since the button is now OFF
+        keyStates[i] = false;
+      }
+    }
+  }
+
+
+
+  if (menu == 1  && select == 1) {
+
+    for (int i = 0; i < numKeys; i++) {
+      int keyStatus = digitalRead(midiKeys[i].keyPin); //Create int variable keyStatus and read the status of each key
+      int keyPin = midiKeys[i].keyPin; //Create int variable keyPin to determine each key pressed
+
+      if (keyStatus == LOW) { //If key pressed
+
+        switch (keyPin) { //If C key pressed
+
+          case 52:
+
+            if (scale == 0 && arpDirection == 0) { //FORWARD, MAJOR
+              for (int i = 0; i < arpLength; i++)
+              {
+                MIDI.sendNoteOn(CMajor[i] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(CMajor[i] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+            if (scale == 0 && arpDirection == 1) {// BACKWARD, MAJOR
+              for (int i = arpLength; i >= 1; i--)
+              {
+                MIDI.sendNoteOn(CMajor[i] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(CMajor[i] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+            if (scale == 0 && arpDirection == 2) {// RANDOM, MAJOR
+
+              for (int i = 0; i < arpLength; i++)
+              { randomSeed(analogRead(A0));
+                int idx = random(sizeof(CMajor) / sizeof(CMajor[0]));
+                int selectedValue = CMajor[idx];
+                MIDI.sendNoteOn(CMajor[selectedValue] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(CMajor[selectedValue] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+
+
+            if (scale == 1 && arpDirection == 0) { //FORWARD, MINOR
+              for (int i = 0; i < arpLength; i++)
+              {
+                MIDI.sendNoteOn(CMinor[i] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(CMinor[i] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+
+            if (scale == 1 && arpDirection == 1) { //BACKWARD, MINOR
+              for (int i = arpLength; i >= 1; i--)
+              {
+                MIDI.sendNoteOn(CMinor[i] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(CMinor[i] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+
+            if (scale == 1 && arpDirection == 2) {// RANDOM, MINOR
+
+              for (int i = 0; i < arpLength; i++)
+              { randomSeed(analogRead(A0));
+                int idx = random(sizeof(CMinor) / sizeof(CMinor[0]));
+                int selectedValue = CMinor[idx];
+                MIDI.sendNoteOn(CMinor[selectedValue] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(CMinor[selectedValue] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+            break;
+
+
+
+
+          case 50:  //C#
+
+            if (scale == 0 && arpDirection == 0) { //FORWARD, MAJOR
+              for (int i = 0; i < arpLength; i++)
+              {
+                MIDI.sendNoteOn(CSMajor[i] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(CSMajor[i] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+            if (scale == 0 && arpDirection == 1) {// BACKWARD, MAJOR
+              for (int i = arpLength; i >= 1; i--)
+              {
+                MIDI.sendNoteOn(CSMajor[i] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(CSMajor[i] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+            if (scale == 0 && arpDirection == 2) {// RANDOM, MAJOR
+
+              for (int i = 0; i < arpLength; i++)
+              { randomSeed(analogRead(A0));
+                int idx = random(sizeof(CSMajor) / sizeof(CSMajor[0]));
+                int selectedValue = CSMajor[idx];
+                MIDI.sendNoteOn(CSMajor[selectedValue] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(CSMajor[selectedValue] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+
+
+            if (scale == 1 && arpDirection == 0) { //FORWARD, MINOR
+              for (int i = 0; i < arpLength; i++)
+              {
+                MIDI.sendNoteOn(CSMinor[i] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(CSMinor[i] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+
+            if (scale == 1 && arpDirection == 1) { //BACKWARD, MINOR
+              for (int i = arpLength; i >= 1; i--)
+              {
+                MIDI.sendNoteOn(CSMinor[i] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(CSMinor[i] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+
+            if (scale == 1 && arpDirection == 2) {// RANDOM, MINOR
+
+              for (int i = 0; i < arpLength; i++)
+              { randomSeed(analogRead(A0));
+                int idx = random(sizeof(CSMinor) / sizeof(CSMinor[0]));
+                int selectedValue = CSMinor[idx];
+                MIDI.sendNoteOn(CSMinor[selectedValue] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(CSMinor[selectedValue] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+            break;
+
+
+          case 48:  //D
+
+            if (scale == 0 && arpDirection == 0) { //FORWARD, MAJOR
+              for (int i = 0; i < arpLength; i++)
+              {
+                MIDI.sendNoteOn(DMajor[i] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(DMajor[i] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+            if (scale == 0 && arpDirection == 1) {// BACKWARD, MAJOR
+              for (int i = arpLength; i >= 1; i--)
+              {
+                MIDI.sendNoteOn(DMajor[i] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(DMajor[i] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+            if (scale == 0 && arpDirection == 2) {// RANDOM, MAJOR
+
+              for (int i = 0; i < arpLength; i++)
+              { randomSeed(analogRead(A0));
+                int idx = random(sizeof(DMajor) / sizeof(DMajor[0]));
+                int selectedValue = DMajor[idx];
+                MIDI.sendNoteOn(DMajor[selectedValue] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(DMajor[selectedValue] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+
+
+            if (scale == 1 && arpDirection == 0) { //FORWARD, MINOR
+              for (int i = 0; i < arpLength; i++)
+              {
+                MIDI.sendNoteOn(DMinor[i] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(DMinor[i] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+
+            if (scale == 1 && arpDirection == 1) { //BACKWARD, MINOR
+              for (int i = arpLength; i >= 1; i--)
+              {
+                MIDI.sendNoteOn(DMinor[i] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(DMinor[i] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+
+            if (scale == 1 && arpDirection == 2) {// RANDOM, MINOR
+
+              for (int i = 0; i < arpLength; i++)
+              { randomSeed(analogRead(A0));
+                int idx = random(sizeof(DMinor) / sizeof(DMinor[0]));
+                int selectedValue = DMinor[idx];
+                MIDI.sendNoteOn(DMinor[selectedValue] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(DMinor[selectedValue] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+            break;
+
+          case 46:  //D#
+
+            if (scale == 0 && arpDirection == 0) { //FORWARD, MAJOR
+              for (int i = 0; i < arpLength; i++)
+              {
+                MIDI.sendNoteOn(DSMajor[i] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(DSMajor[i] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+            if (scale == 0 && arpDirection == 1) {// BACKWARD, MAJOR
+              for (int i = arpLength; i >= 1; i--)
+              {
+                MIDI.sendNoteOn(DSMajor[i] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(DSMajor[i] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+            if (scale == 0 && arpDirection == 2) {// RANDOM, MAJOR
+
+              for (int i = 0; i < arpLength; i++)
+              { randomSeed(analogRead(A0));
+                int idx = random(sizeof(DSMajor) / sizeof(DSMajor[0]));
+                int selectedValue = DSMajor[idx];
+                MIDI.sendNoteOn(DSMajor[selectedValue] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(DSMajor[selectedValue] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+
+
+            if (scale == 1 && arpDirection == 0) { //FORWARD, MINOR
+              for (int i = 0; i < arpLength; i++)
+              {
+                MIDI.sendNoteOn(DSMinor[i] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(DSMinor[i] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+
+            if (scale == 1 && arpDirection == 1) { //BACKWARD, MINOR
+              for (int i = arpLength; i >= 1; i--)
+              {
+                MIDI.sendNoteOn(DSMinor[i] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(DSMinor[i] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+
+            if (scale == 1 && arpDirection == 2) {// RANDOM, MINOR
+
+              for (int i = 0; i < arpLength; i++)
+              { randomSeed(analogRead(A0));
+                int idx = random(sizeof(DSMinor) / sizeof(DSMinor[0]));
+                int selectedValue = DSMinor[idx];
+                MIDI.sendNoteOn(DSMinor[selectedValue] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(DSMinor[selectedValue] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+            break;
+
+          case 44:  //E
+
+            if (scale == 0 && arpDirection == 0) { //FORWARD, MAJOR
+              for (int i = 0; i < arpLength; i++)
+              {
+                MIDI.sendNoteOn(EMajor[i] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(EMajor[i] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+            if (scale == 0 && arpDirection == 1) {// BACKWARD, MAJOR
+              for (int i = arpLength; i >= 1; i--)
+              {
+                MIDI.sendNoteOn(EMajor[i] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(EMajor[i] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+            if (scale == 0 && arpDirection == 2) {// RANDOM, MAJOR
+
+              for (int i = 0; i < arpLength; i++)
+              { randomSeed(analogRead(A0));
+                int idx = random(sizeof(EMajor) / sizeof(EMajor[0]));
+                int selectedValue = EMajor[idx];
+                MIDI.sendNoteOn(EMajor[selectedValue] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(EMajor[selectedValue] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+
+
+            if (scale == 1 && arpDirection == 0) { //FORWARD, MINOR
+              for (int i = 0; i < arpLength; i++)
+              {
+                MIDI.sendNoteOn(EMinor[i] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(EMinor[i] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+
+            if (scale == 1 && arpDirection == 1) { //BACKWARD, MINOR
+              for (int i = arpLength; i >= 1; i--)
+              {
+                MIDI.sendNoteOn(EMinor[i] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(EMinor[i] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+
+            if (scale == 1 && arpDirection == 2) {// RANDOM, MINOR
+
+              for (int i = 0; i < arpLength; i++)
+              { randomSeed(analogRead(A0));
+                int idx = random(sizeof(EMinor) / sizeof(EMinor[0]));
+                int selectedValue = EMinor[idx];
+                MIDI.sendNoteOn(EMinor[selectedValue] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(EMinor[selectedValue] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+            break;
+
+
+          case 42:  //F
+
+            if (scale == 0 && arpDirection == 0) { //FORWARD, MAJOR
+              for (int i = 0; i < arpLength; i++)
+              {
+                MIDI.sendNoteOn(FMajor[i] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(FMajor[i] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+            if (scale == 0 && arpDirection == 1) {// BACKWARD, MAJOR
+              for (int i = arpLength; i >= 1; i--)
+              {
+                MIDI.sendNoteOn(FMajor[i] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(FMajor[i] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+            if (scale == 0 && arpDirection == 2) {// RANDOM, MAJOR
+
+              for (int i = 0; i < arpLength; i++)
+              { randomSeed(analogRead(A0));
+                int idx = random(sizeof(FMajor) / sizeof(FMajor[0]));
+                int selectedValue = FMajor[idx];
+                MIDI.sendNoteOn(FMajor[selectedValue] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(FMajor[selectedValue] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+
+
+            if (scale == 1 && arpDirection == 0) { //FORWARD, MINOR
+              for (int i = 0; i < arpLength; i++)
+              {
+                MIDI.sendNoteOn(FMinor[i] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(FMinor[i] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+
+            if (scale == 1 && arpDirection == 1) { //BACKWARD, MINOR
+              for (int i = arpLength; i >= 1; i--)
+              {
+                MIDI.sendNoteOn(FMinor[i] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(FMinor[i] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+
+            if (scale == 1 && arpDirection == 2) {// RANDOM, MINOR
+
+              for (int i = 0; i < arpLength; i++)
+              { randomSeed(analogRead(A0));
+                int idx = random(sizeof(FMinor) / sizeof(FMinor[0]));
+                int selectedValue = FMinor[idx];
+                MIDI.sendNoteOn(FMinor[selectedValue] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(FMinor[selectedValue] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+            break;
+
+
+          case 40:  //F#
+
+            if (scale == 0 && arpDirection == 0) { //FORWARD, MAJOR
+              for (int i = 0; i < arpLength; i++)
+              {
+                MIDI.sendNoteOn(FSMajor[i] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(FSMajor[i] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+            if (scale == 0 && arpDirection == 1) {// BACKWARD, MAJOR
+              for (int i = arpLength; i >= 1; i--)
+              {
+                MIDI.sendNoteOn(FSMajor[i] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(FSMajor[i] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+            if (scale == 0 && arpDirection == 2) {// RANDOM, MAJOR
+
+              for (int i = 0; i < arpLength; i++)
+              { randomSeed(analogRead(A0));
+                int idx = random(sizeof(FSMajor) / sizeof(FSMajor[0]));
+                int selectedValue = FSMajor[idx];
+                MIDI.sendNoteOn(FSMajor[selectedValue] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(FSMajor[selectedValue] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+
+
+            if (scale == 1 && arpDirection == 0) { //FORWARD, MINOR
+              for (int i = 0; i < arpLength; i++)
+              {
+                MIDI.sendNoteOn(FSMinor[i] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(FSMinor[i] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+
+            if (scale == 1 && arpDirection == 1) { //BACKWARD, MINOR
+              for (int i = arpLength; i >= 1; i--)
+              {
+                MIDI.sendNoteOn(FSMinor[i] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(FSMinor[i] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+
+            if (scale == 1 && arpDirection == 2) {// RANDOM, MINOR
+
+              for (int i = 0; i < arpLength; i++)
+              { randomSeed(analogRead(A0));
+                int idx = random(sizeof(FSMinor) / sizeof(FSMinor[0]));
+                int selectedValue = FSMinor[idx];
+                MIDI.sendNoteOn(FSMinor[selectedValue] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(FSMinor[selectedValue] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+            break;
+
+
+          case 38:  //G
+
+            if (scale == 0 && arpDirection == 0) { //FORWARD, MAJOR
+              for (int i = 0; i < arpLength; i++)
+              {
+                MIDI.sendNoteOn(GMajor[i] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(GMajor[i] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+            if (scale == 0 && arpDirection == 1) {// BACKWARD, MAJOR
+              for (int i = arpLength; i >= 1; i--)
+              {
+                MIDI.sendNoteOn(GMajor[i] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(GMajor[i] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+            if (scale == 0 && arpDirection == 2) {// RANDOM, MAJOR
+
+              for (int i = 0; i < arpLength; i++)
+              { randomSeed(analogRead(A0));
+                int idx = random(sizeof(GMajor) / sizeof(GMajor[0]));
+                int selectedValue = GMajor[idx];
+                MIDI.sendNoteOn(GMajor[selectedValue] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(GMajor[selectedValue] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+
+
+            if (scale == 1 && arpDirection == 0) { //FORWARD, MINOR
+              for (int i = 0; i < arpLength; i++)
+              {
+                MIDI.sendNoteOn(GMinor[i] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(GMinor[i] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+
+            if (scale == 1 && arpDirection == 1) { //BACKWARD, MINOR
+              for (int i = arpLength; i >= 1; i--)
+              {
+                MIDI.sendNoteOn(GMinor[i] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(GMinor[i] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+
+            if (scale == 1 && arpDirection == 2) {// RANDOM, MINOR
+
+              for (int i = 0; i < arpLength; i++)
+              { randomSeed(analogRead(A0));
+                int idx = random(sizeof(GMinor) / sizeof(GMinor[0]));
+                int selectedValue = GMinor[idx];
+                MIDI.sendNoteOn(GMinor[selectedValue] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(GMinor[selectedValue] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+            break;
+
+
+          case 36:  //G#
+
+            if (scale == 0 && arpDirection == 0) { //FORWARD, MAJOR
+              for (int i = 0; i < arpLength; i++)
+              {
+                MIDI.sendNoteOn(GSMajor[i] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(GSMajor[i] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+            if (scale == 0 && arpDirection == 1) {// BACKWARD, MAJOR
+              for (int i = arpLength; i >= 1; i--)
+              {
+                MIDI.sendNoteOn(GSMajor[i] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(GSMajor[i] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+            if (scale == 0 && arpDirection == 2) {// RANDOM, MAJOR
+
+              for (int i = 0; i < arpLength; i++)
+              { randomSeed(analogRead(A0));
+                int idx = random(sizeof(GSMajor) / sizeof(GSMajor[0]));
+                int selectedValue = GSMajor[idx];
+                MIDI.sendNoteOn(GSMajor[selectedValue] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(GSMajor[selectedValue] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+
+
+            if (scale == 1 && arpDirection == 0) { //FORWARD, MINOR
+              for (int i = 0; i < arpLength; i++)
+              {
+                MIDI.sendNoteOn(GSMinor[i] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(GSMinor[i] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+
+            if (scale == 1 && arpDirection == 1) { //BACKWARD, MINOR
+              for (int i = arpLength; i >= 1; i--)
+              {
+                MIDI.sendNoteOn(GSMinor[i] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(GSMinor[i] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+
+            if (scale == 1 && arpDirection == 2) {// RANDOM, MINOR
+
+              for (int i = 0; i < arpLength; i++)
+              { randomSeed(analogRead(A0));
+                int idx = random(sizeof(GSMinor) / sizeof(GSMinor[0]));
+                int selectedValue = GSMinor[idx];
+                MIDI.sendNoteOn(GSMinor[selectedValue] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(GSMinor[selectedValue] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+            break;
+
+
+          case 34:  //A
+
+            if (scale == 0 && arpDirection == 0) { //FORWARD, MAJOR
+              for (int i = 0; i < arpLength; i++)
+              {
+                MIDI.sendNoteOn(AMajor[i] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(AMajor[i] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+            if (scale == 0 && arpDirection == 1) {// BACKWARD, MAJOR
+              for (int i = arpLength; i >= 1; i--)
+              {
+                MIDI.sendNoteOn(AMajor[i] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(AMajor[i] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+            if (scale == 0 && arpDirection == 2) {// RANDOM, MAJOR
+
+              for (int i = 0; i < arpLength; i++)
+              { randomSeed(analogRead(A0));
+                int idx = random(sizeof(AMajor) / sizeof(AMajor[0]));
+                int selectedValue = AMajor[idx];
+                MIDI.sendNoteOn(AMajor[selectedValue] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(AMajor[selectedValue] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+
+
+            if (scale == 1 && arpDirection == 0) { //FORWARD, MINOR
+              for (int i = 0; i < arpLength; i++)
+              {
+                MIDI.sendNoteOn(AMinor[i] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(AMinor[i] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+
+            if (scale == 1 && arpDirection == 1) { //BACKWARD, MINOR
+              for (int i = arpLength; i >= 1; i--)
+              {
+                MIDI.sendNoteOn(AMinor[i] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(AMinor[i] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+
+            if (scale == 1 && arpDirection == 2) {// RANDOM, MINOR
+
+              for (int i = 0; i < arpLength; i++)
+              { randomSeed(analogRead(A0));
+                int idx = random(sizeof(AMinor) / sizeof(AMinor[0]));
+                int selectedValue = AMinor[idx];
+                MIDI.sendNoteOn(AMinor[selectedValue] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(AMinor[selectedValue] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+            break;
+
+
+          case 32:  //A#
+
+            if (scale == 0 && arpDirection == 0) { //FORWARD, MAJOR
+              for (int i = 0; i < arpLength; i++)
+              {
+                MIDI.sendNoteOn(ASMajor[i] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(ASMajor[i] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+            if (scale == 0 && arpDirection == 1) {// BACKWARD, MAJOR
+              for (int i = arpLength; i >= 1; i--)
+              {
+                MIDI.sendNoteOn(ASMajor[i] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(ASMajor[i] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+            if (scale == 0 && arpDirection == 2) {// RANDOM, MAJOR
+
+              for (int i = 0; i < arpLength; i++)
+              { randomSeed(analogRead(A0));
+                int idx = random(sizeof(ASMajor) / sizeof(ASMajor[0]));
+                int selectedValue = ASMajor[idx];
+                MIDI.sendNoteOn(ASMajor[selectedValue] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(ASMajor[selectedValue] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+
+
+            if (scale == 1 && arpDirection == 0) { //FORWARD, MINOR
+              for (int i = 0; i < arpLength; i++)
+              {
+                MIDI.sendNoteOn(ASMinor[i] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(ASMinor[i] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+
+            if (scale == 1 && arpDirection == 1) { //BACKWARD, MINOR
+              for (int i = arpLength; i >= 1; i--)
+              {
+                MIDI.sendNoteOn(ASMinor[i] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(ASMinor[i] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+
+            if (scale == 1 && arpDirection == 2) {// RANDOM, MINOR
+
+              for (int i = 0; i < arpLength; i++)
+              { randomSeed(analogRead(A0));
+                int idx = random(sizeof(ASMinor) / sizeof(ASMinor[0]));
+                int selectedValue = ASMinor[idx];
+                MIDI.sendNoteOn(ASMinor[selectedValue] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(ASMinor[selectedValue] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+            break;
+
+
+          case 30:  //B
+
+            if (scale == 0 && arpDirection == 0) { //FORWARD, MAJOR
+              for (int i = 0; i < arpLength; i++)
+              {
+                MIDI.sendNoteOn(BMajor[i] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(BMajor[i] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+            if (scale == 0 && arpDirection == 1) {// BACKWARD, MAJOR
+              for (int i = arpLength; i >= 1; i--)
+              {
+                MIDI.sendNoteOn(BMajor[i] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(BMajor[i] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+            if (scale == 0 && arpDirection == 2) {// RANDOM, MAJOR
+
+              for (int i = 0; i < arpLength; i++)
+              { randomSeed(analogRead(A0));
+                int idx = random(sizeof(BMajor) / sizeof(BMajor[0]));
+                int selectedValue = BMajor[idx];
+                MIDI.sendNoteOn(BMajor[selectedValue] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(BMajor[selectedValue] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+
+
+            if (scale == 1 && arpDirection == 0) { //FORWARD, MINOR
+              for (int i = 0; i < arpLength; i++)
+              {
+                MIDI.sendNoteOn(BMinor[i] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(BMinor[i] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+
+            if (scale == 1 && arpDirection == 1) { //BACKWARD, MINOR
+              for (int i = arpLength; i >= 1; i--)
+              {
+                MIDI.sendNoteOn(BMinor[i] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(BMinor[i] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+
+
+            if (scale == 1 && arpDirection == 2) {// RANDOM, MINOR
+
+              for (int i = 0; i < arpLength; i++)
+              { randomSeed(analogRead(A0));
+                int idx = random(sizeof(BMinor) / sizeof(BMinor[0]));
+                int selectedValue = BMinor[idx];
+                MIDI.sendNoteOn(BMinor[selectedValue] + octRange, 127, 1);
+                delay(arpDelay);
+                MIDI.sendNoteOff(BMinor[selectedValue] + octRange, 0, 1);
+                delay(arpDelay);
+              }
+            }
+            break;
+
+
+        }
+      }
+    }
+
+  }
+
+
+  if (menu == 2  && select == 1) { //TEACH
+
+    for (int i = 0; i < numKeys; i++) {
+
+      int keyStatus = digitalRead(midiKeys[i].keyPin); //Create int variable keyStatus and read the status of each key
+      if ((keyStatus == LOW) && (keyStates[i] == false)) { //If keyStatus = LOW (ie - key ON) AND current keyState = FALSE
+
+        MIDI.sendNoteOn(midiKeys[i].midiNote + octRange, 127, 1); //Turn midi note ON: velocity 127, midi channel 1.
+        //Mark the button  state as TRUE, since the button is now ON
+        keyStates[i] = true;
+      }
+
+      else if ((keyStatus == HIGH) && (keyStates[i] == true)) //Else if keyStatus = HIGH (ie - key OFF) AND current keyState = TRUE
+      {
+        MIDI.sendNoteOff(midiKeys[i].midiNote + octRange, 0, 1); //turn midi note off, midi channel 1.
+        //Mark the button  state as FALSE, since the button is now OFF
+        keyStates[i] = false;
+      }
+    }
+
+  }
+
+
+
+
+
+
+
+}
+
+
+
+void oLEDStart() {
+
+  display.setCursor(0, 0);
+
+  for ( int i = 0; i < 64; i++) {
+    display.setCursor(i, i);
+    display.clearDisplay();
+    display.println("MIDI CONTROLLER V1");
+    display.display();
+  }
+
+  display.clearDisplay();
+  display.display();
+}
